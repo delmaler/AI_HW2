@@ -2,6 +2,7 @@ from environment import Player, GameState, GameAction, get_next_state
 from utils import get_fitness
 import numpy as np
 from enum import Enum
+from scipy.spatial.distance import cityblock
 
 
 def heuristic(state: GameState, player_index: int) -> float:
@@ -18,9 +19,11 @@ def heuristic(state: GameState, player_index: int) -> float:
     max_possible_fruits = len(state.fruits_locations) + sum([s.length for s in state.snakes
                                                                  if s.index != player_index and s.alive])
     turns_left = (state.game_duration_in_turns - state.turn_number)
+    snake_manhattan_dists = sorted([cityblock(state.snake.head, trophy_i)
+                                                    for trophy_i in state.fruits_locations])
     max_possible_fruits = min(max_possible_fruits, turns_left)
     optimistic_future_reward = discount_factor*(1 - discount_factor ** max_possible_fruits) / (1-discount_factor)
-    return state.snakes[player_index].length + optimistic_future_reward
+    return state.snakes[player_index].length + optimistic_future_reward+1/snake_manhattan_dists[0]
     
 
 
