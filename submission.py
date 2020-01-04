@@ -117,11 +117,9 @@ class MinimaxAgent(Player):
 
     def __RB_Minimax__(self, state: TurnBasedGameState, depth=2):
         if state.game_state.is_terminal_state:
-            print("2")
             return heuristic(state.game_state, self.player_index)
         if depth <= 0:
             assert(depth == 0)
-            print("1")
             return heuristic(state.game_state, self.player_index)
         if state.turn == self.Turn.AGENT_TURN:
             cur_max = -np.inf
