@@ -27,6 +27,8 @@ def heuristic(state: GameState, player_index: int) -> float:
     optimistic_future_reward = discount_factor*(1 - discount_factor ** max_possible_fruits) / (1-discount_factor)
     return state.snakes[player_index].length + optimistic_future_reward+1/snake_manhattan_dists_from_fruits[0]+state.snakes[player_index].length+10*state.snakes[player_index].alive
     """
+
+
 def heuristic(state: GameState, player_index: int) -> float:
     """
     Computes the heuristic value for the agent with player_index at the given state
@@ -46,18 +48,20 @@ def heuristic(state: GameState, player_index: int) -> float:
     max_possible_fruits = len(state.fruits_locations) + sum([s.length for s in state.snakes
                                                              if s.alive])
     weight_for_bonus_length = 500
-    bonus_for_length = state.snakes[player_index].length / max_possible_fruits * weight_for_bonus_length
+    bonus_for_length = state.snakes[player_index].length / \
+        max_possible_fruits * weight_for_bonus_length
 
     bonus_for_distance_from_closest_enemy = min(abs(my_pos_row - state.snakes[enemy].head[0]) + abs(
         my_pos_col - state.snakes[enemy].head[1])
-                                                for enemy in state.get_opponents_alive(player_index)) if len(
+        for enemy in state.get_opponents_alive(player_index)) if len(
         state.get_opponents_alive(player_index)) > 0 else 0
-    bonus_for_distance_from_closest_enemy /= (state.board_size.height + state.board_size.width)
+    bonus_for_distance_from_closest_enemy /= (
+        state.board_size.height + state.board_size.width)
     weight_for_distance_from_closest_enemy = 0.5
     bonus_for_distance_from_closest_enemy *= weight_for_distance_from_closest_enemy
 
     bonus_for_air_dist_from_tail = np.sqrt((my_pos_row - state.snakes[player_index].tail_position[0]) ** 2 + (
-            my_pos_col - state.snakes[player_index].tail_position[1]) ** 2) / np.sqrt(
+        my_pos_col - state.snakes[player_index].tail_position[1]) ** 2) / np.sqrt(
         state.board_size.height ** 2 + state.board_size.width ** 2)
     length = state.snakes[player_index].length
     weight_for_air_dist_from_tail = 1 - 1 / length if length >= 10 else 0
@@ -67,9 +71,10 @@ def heuristic(state: GameState, player_index: int) -> float:
         min_manhattan_distance_from_fruit = min(
             abs(fruit_row - my_pos_row) + abs(fruit_col - my_pos_col) for fruit_row, fruit_col in
             state.fruits_locations) if len(state.fruits_locations) > 0 else 0
-        bonus_for_manhattan_distance = state.board_size.height + state.board_size.width - min_manhattan_distance_from_fruit
+        bonus_for_manhattan_distance = state.board_size.height + \
+            state.board_size.width - min_manhattan_distance_from_fruit
         bonus_for_manhattan_distance = bonus_for_manhattan_distance / (
-                state.board_size.height + state.board_size.width)  # normalization
+            state.board_size.height + state.board_size.width)  # normalization
         weight_for_manhattan_distance = 1
         bonus_for_manhattan_distance *= weight_for_manhattan_distance
         return bonus_for_manhattan_distance + bonus_for_length + bonus_for_air_dist_from_tail + bonus_for_distance_from_closest_enemy
@@ -77,6 +82,9 @@ def heuristic(state: GameState, player_index: int) -> float:
         weight_for_air_dist_from_tail = 10
         bonus_for_air_dist_from_tail *= weight_for_air_dist_from_tail
         return bonus_for_length * 2 + bonus_for_air_dist_from_tail + bonus_for_distance_from_closest_enemy
+
+
+
 
 
 class MinimaxAgent(Player):
@@ -92,9 +100,9 @@ class MinimaxAgent(Player):
         OPPONENTS_TURN = 'OPPONENTS_TURN'
 
     class TurnBasedGameState:
-    
-    #    This class is a wrapper class for a GameState. It holds the action of our agent as well, so we can model turns
-    #   in the game (set agent_action=None to indicate that our agent has yet to pick an action).
+
+        #    This class is a wrapper class for a GameState. It holds the action of our agent as well, so we can model turns
+        #   in the game (set agent_action=None to indicate that our agent has yet to pick an action).
 
         def __init__(self, game_state: GameState, agent_action: GameAction):
             self.game_state = game_state
@@ -108,24 +116,28 @@ class MinimaxAgent(Player):
             self.agent_action = agent_action
 
     def __RB_Minimax__(self, state: TurnBasedGameState, depth=2):
-        if self.TurnBasedGameState:
+        if state.game_state.is_terminal_state:
+            print("2")
             return heuristic(state.game_state, self.player_index)
         if depth <= 0:
             assert(depth == 0)
-            return heuristic(state, self.player_index)
+            print("1")
+            return heuristic(state.game_state, self.player_index)
         if state.turn == self.Turn.AGENT_TURN:
             cur_max = -np.inf
-            for action in state.get_possible_actions(self.player_index):
-                new_state=self.TurnBasedGameState(state,action)
-                cur_value = self.__RB_Minimax__(new_state, depth)
+            for action in state.game_state.get_possible_actions(self.player_index):
+                state.agent_action=action
+                cur_value = self.__RB_Minimax__(state, depth)
                 cur_max = max(cur_max, cur_value)
             return cur_max
         else:
             assert state.turn == self.Turn.OPPONENTS_TURN
             cur_min = np.inf
             for opponents_actions in state.game_state.get_possible_actions_dicts_given_action(state.agent_action, self.player_index):
-                next_state = get_next_state(state.game_state, opponents_actions)
-                next_state_with_turn = self.TurnBasedGameState(next_state, None)
+                next_state = get_next_state(
+                    state.game_state, opponents_actions)
+                next_state_with_turn = self.TurnBasedGameState(
+                    next_state, None)
                 cur_min = min(cur_min, self.__RB_Minimax__(
                     next_state_with_turn, depth-1))
             return cur_min
@@ -134,14 +146,15 @@ class MinimaxAgent(Player):
         # Insert your code here...
         # cur_time=time.clock
         cur_max = -np.inf
-        max_state = GameAction(0)
+        max_state = GameAction(1)
         for action in state.get_possible_actions(self.player_index):
-            state_after_turn = self.TurnBasedGameState(state, action)
-            state_value = self.__RB_Minimax__(state_after_turn,2)
+            state_after_turn = MinimaxAgent.TurnBasedGameState(state, action)
+            state_value = self.__RB_Minimax__(state_after_turn, 2)
             if state_value > cur_max:
                 cur_max = state_value
                 max_state = action
         return max_state
+
 
 class AlphaBetaAgent(MinimaxAgent):
     def get_action(self, state: GameState) -> GameAction:
@@ -151,7 +164,8 @@ class AlphaBetaAgent(MinimaxAgent):
         maxi_action = GameAction(0)
         all_actions = state.get_possible_actions(self.player_index)
         for action in all_actions:
-            curr_value = self.get_action_wrapper(MinimaxAgent.TurnBasedGameState(state, action), dep, -np.inf, np.inf)
+            curr_value = self.get_action_wrapper(
+                MinimaxAgent.TurnBasedGameState(state, action), dep, -np.inf, np.inf)
             if curr_value > max_value:
                 max_value = curr_value
                 maxi_action = action
@@ -186,7 +200,6 @@ class AlphaBetaAgent(MinimaxAgent):
             return curr_min
 
 
-
 def SAHC_sideways():
     """
     Implement Steepest Ascent Hill Climbing with Sideways Steps Here.
@@ -209,12 +222,13 @@ def SAHC_sideways():
         for act in GameAction:
             if act != curr_action:
                 test_actions_vector = initial_actions_vector.copy()
-                test_actions_vector[i] = act #put the new action here
+                test_actions_vector[i] = act  # put the new action here
                 if get_fitness(initial_actions_vector) <= get_fitness(test_actions_vector):
                     initial_actions_vector[i] = test_actions_vector[i]
     for i in initial_actions_vector.__iter__():
         to_print = to_print + i.name + " "
     print(to_print)
+
 
 def get_random_action_list():
     """
@@ -251,7 +265,7 @@ def local_search():
     """
     to_print = ""
     max_fitness = 0
-    max_actions_vector =[]
+    max_actions_vector = []
     rounds = 0
     while rounds < 10:
         i = 0
@@ -275,6 +289,7 @@ def local_search():
     for i in max_actions_vector.__iter__():
         to_print = to_print + i.name + " "
     print(to_print)
+
 
 class TournamentAgent(Player):
 
