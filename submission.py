@@ -84,9 +84,6 @@ def heuristic(state: GameState, player_index: int) -> float:
         return bonus_for_length * 2 + bonus_for_air_dist_from_tail + bonus_for_distance_from_closest_enemy
 
 
-
-
-
 class MinimaxAgent(Player):
     """
     This class implements the Minimax algorithm.
@@ -124,7 +121,7 @@ class MinimaxAgent(Player):
         if state.turn == self.Turn.AGENT_TURN:
             cur_max = -np.inf
             for action in state.game_state.get_possible_actions(self.player_index):
-                state.agent_action=action
+                state.agent_action = action
                 cur_value = self.__RB_Minimax__(state, depth)
                 cur_max = max(cur_max, cur_value)
             return cur_max
@@ -156,7 +153,7 @@ class MinimaxAgent(Player):
 
 class AlphaBetaAgent(MinimaxAgent):
     def get_action(self, state: GameState) -> GameAction:
-        dep = 2
+        dep = 3
         start_time = time.clock()
         max_value = -np.inf
         maxi_action = GameAction(0)
@@ -175,24 +172,28 @@ class AlphaBetaAgent(MinimaxAgent):
         if dep == 0 or state.game_state.is_terminal_state:
             return heuristic(state.game_state, self.player_index)
         turn = state.turn
-        all_actions = state.game_state.get_possible_actions(self.player_index)
         if turn == MinimaxAgent.Turn.AGENT_TURN:
             curr_max = -np.inf
+            all_actions = state.game_state.get_possible_actions(
+                self.player_index)
             for action in all_actions:
                 state.agent_action = action
-                temp_val = self.get_action_wrapper(state, dep-1, alpha, beta)
+                temp_val = self.get_action_wrapper(state, dep, alpha, beta)
                 curr_max = max(curr_max, temp_val)
                 alpha = max(curr_max, alpha)
                 if curr_max >= beta:
                     return np.inf
             return curr_max
         else:
+            assert(MinimaxAgent.Turn.OPPONENTS_TURN==turn)
             curr_min = np.inf
-            for action in all_actions:
-                state.agent_action = action
-                temp_val = self.get_action_wrapper(state, dep-1, alpha, beta)
-                curr_min = min(curr_min, beta)
-                beta = min(curr_min, temp_val)
+            for opponenets_action in state.game_state.get_possible_actions_dicts_given_action(state.agent_action, self.player_index):
+                next_state = get_next_state(state.game_state,opponenets_action)
+                next_state_with_turn = MinimaxAgent.TurnBasedGameState(
+                    next_state, None)
+                temp_val = self.get_action_wrapper(next_state_with_turn, dep-1, alpha, beta)
+                curr_min = min(curr_min, temp_val)
+                beta = min(curr_min, beta)
                 if curr_min <= alpha:
                     return -np.inf
             return curr_min
