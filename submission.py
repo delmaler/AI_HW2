@@ -5,84 +5,53 @@ import time
 from enum import Enum
 from scipy.spatial.distance import cityblock
 
-"""
+
+
 def heuristic(state: GameState, player_index: int) -> float:
-    """"""
+
+    """
     Computes the heuristic value for the agent with player_index at the given state
     :param state:
     :param player_index: integer. represents the identity of the player. this is the index of the agent's snake in the
     state.snakes array as well.
     :return:
-    """"""
-    if not state.snakes[player_index].alive:
-            return state.snakes[player_index].length
-    discount_factor = 0.5
-    max_possible_fruits = len(state.fruits_locations) + sum([s.length for s in state.snakes
-                                                                 if s.index != player_index and s.alive])
+    """
+    #c
+    if not state.snakes[player_index].alive:#we never want our snake to die
+            return -500
+    #setting weights
+    too_long=8
+    fruit_weight=1.4
+    weight_for_length=500
+    board_factor=np.sqrt(state.board_size.width**2+state.board_size.height**2)
+    snake_length=state.snakes[player_index].length
     turns_left = (state.game_duration_in_turns - state.turn_number)
-    snake_manhattan_dists_from_fruits = sorted([cityblock(state.snakes[player_index].head, trophy_i)
+    possible_fruits=min(len(state.fruits_locations) + sum([s.length for s in state.snakes
+                                                             if s.alive]) ,turns_left)
+    if(possible_fruits>0):
+        bonus_for_length = weight_for_length*snake_length / possible_fruits
+    else:
+        bonus_for_length=weight_for_length
+    #calculating manheten distance and normalizing for board
+    bonus_for_avoiding_tail=cityblock(state.snakes[player_index].head,state.snakes[player_index].tail_position)/np.sqrt(state.board_size.width**2+state.board_size.height**2)
+    avoiding_tail_weight=1-1/snake_length if snake_length>too_long else 0
+    bonus_for_avoiding_tail*=avoiding_tail_weight
+
+    #distinguishing between two game modes eating fruits and surviving
+    if len(state.fruits_locations)>0:
+        nearest_fruits_weight = min([cityblock(state.snakes[player_index].head, trophy_i)
                                                     for trophy_i in state.fruits_locations])
-    
-    max_possible_fruits = min(max_possible_fruits, turns_left)
-    optimistic_future_reward = discount_factor*(1 - discount_factor ** max_possible_fruits) / (1-discount_factor)
-    return state.snakes[player_index].length + optimistic_future_reward+1/snake_manhattan_dists_from_fruits[0]+state.snakes[player_index].length+10*state.snakes[player_index].alive
-    """
-
-
-def heuristic(state: GameState, player_index: int) -> float:
-    """
-    Computes the heuristic value for the agent with player_index at the given state
-    :param state:
-    :param player_index: integer. represents the identity of the player. this is the index of the agent's snake in the
-    state.snakes array as well.
-    :return:
-    """
-    min_manhattan_distance_from_fruit = num_snakes_alive = num_snakes_alive_bigger_than_me = 0
-    my_pos_row = state.snakes[player_index].head[0]
-    my_pos_col = state.snakes[player_index].head[1]
-
-    # TODO: return the utility value if the state is a final state
-    if not state.snakes[player_index].alive:
-        return 0
-
-    max_possible_fruits = len(state.fruits_locations) + sum([s.length for s in state.snakes
-                                                             if s.alive])
-    weight_for_bonus_length = 500
-    bonus_for_length = state.snakes[player_index].length / \
-        max_possible_fruits * weight_for_bonus_length
-
-    bonus_for_distance_from_closest_enemy = min(abs(my_pos_row - state.snakes[enemy].head[0]) + abs(
-        my_pos_col - state.snakes[enemy].head[1])
+        nearest_fruit_bonus=state.board_size.height+state.board_size.width-nearest_fruits_weight
+        nearest_fruit_bonus/=(state.board_size.height+state.board_size.width)#normalize
+        nearest_fruit_bonus*=fruit_weight
+        return nearest_fruit_bonus+bonus_for_length+avoiding_tail_weight
+    else:
+        weight=1.8
+        distance_from_enemy_bonus= min(cityblock(state.snakes[player_index].head,state.snakes[enemy].head)
         for enemy in state.get_opponents_alive(player_index)) if len(
         state.get_opponents_alive(player_index)) > 0 else 0
-    bonus_for_distance_from_closest_enemy /= (
-        state.board_size.height + state.board_size.width)
-    weight_for_distance_from_closest_enemy = 0.5
-    bonus_for_distance_from_closest_enemy *= weight_for_distance_from_closest_enemy
-
-    bonus_for_air_dist_from_tail = np.sqrt((my_pos_row - state.snakes[player_index].tail_position[0]) ** 2 + (
-        my_pos_col - state.snakes[player_index].tail_position[1]) ** 2) / np.sqrt(
-        state.board_size.height ** 2 + state.board_size.width ** 2)
-    length = state.snakes[player_index].length
-    weight_for_air_dist_from_tail = 1 - 1 / length if length >= 10 else 0
-    bonus_for_air_dist_from_tail *= weight_for_air_dist_from_tail
-
-    if len(state.fruits_locations) > 0:
-        min_manhattan_distance_from_fruit = min(
-            abs(fruit_row - my_pos_row) + abs(fruit_col - my_pos_col) for fruit_row, fruit_col in
-            state.fruits_locations) if len(state.fruits_locations) > 0 else 0
-        bonus_for_manhattan_distance = state.board_size.height + \
-            state.board_size.width - min_manhattan_distance_from_fruit
-        bonus_for_manhattan_distance = bonus_for_manhattan_distance / (
-            state.board_size.height + state.board_size.width)  # normalization
-        weight_for_manhattan_distance = 1
-        bonus_for_manhattan_distance *= weight_for_manhattan_distance
-        return bonus_for_manhattan_distance + bonus_for_length + bonus_for_air_dist_from_tail + bonus_for_distance_from_closest_enemy
-    else:
-        weight_for_air_dist_from_tail = 10
-        bonus_for_air_dist_from_tail *= weight_for_air_dist_from_tail
-        return bonus_for_length * 2 + bonus_for_air_dist_from_tail + bonus_for_distance_from_closest_enemy
-
+        distance_from_enemy_bonus/=board_factor #normalize
+        return bonus_for_length*weight+bonus_for_avoiding_tail*weight+distance_from_enemy_bonus
 
 class MinimaxAgent(Player):
     """
@@ -92,6 +61,8 @@ class MinimaxAgent(Player):
     hint: use the 'agent_action' property to determine if it's the agents turn or the opponents' turn. You can pass
     'None' value (without quotes) to indicate that your agent haven't picked an action yet.
     """
+    time=0
+    num_played=0
     class Turn(Enum):
         AGENT_TURN = 'AGENT_TURN'
         OPPONENTS_TURN = 'OPPONENTS_TURN'
@@ -112,7 +83,7 @@ class MinimaxAgent(Player):
         def set_action(self, agent_action):
             self.agent_action = agent_action
 
-    def __RB_Minimax__(self, state: TurnBasedGameState, depth=2):
+    def __RB_Minimax__(self, state: TurnBasedGameState, depth):
         if state.game_state.is_terminal_state:
             return heuristic(state.game_state, self.player_index)
         if depth <= 0:
@@ -138,8 +109,7 @@ class MinimaxAgent(Player):
             return cur_min
 
     def get_action(self, state: GameState) -> GameAction:
-        # Insert your code here...
-        # cur_time=time.clock
+        cur_time=time.clock()
         cur_max = -np.inf
         max_state = GameAction(1)
         for action in state.get_possible_actions(self.player_index):
@@ -148,24 +118,36 @@ class MinimaxAgent(Player):
             if state_value > cur_max:
                 cur_max = state_value
                 max_state = action
+        end_time=time.clock()
+        self.time+=end_time-cur_time
+        self.num_played+=1
         return max_state
 
 
 class AlphaBetaAgent(MinimaxAgent):
+    time=0
+    num_played=0
+    dep=2
     def get_action(self, state: GameState) -> GameAction:
-        dep = 3
         start_time = time.clock()
         max_value = -np.inf
         maxi_action = GameAction(0)
         all_actions = state.get_possible_actions(self.player_index)
         for action in all_actions:
             curr_value = self.get_action_wrapper(
-                MinimaxAgent.TurnBasedGameState(state, action), dep, -np.inf, np.inf)
+                MinimaxAgent.TurnBasedGameState(state, action), self.dep, -np.inf, np.inf)
             if curr_value > max_value:
                 max_value = curr_value
                 maxi_action = action
         stop_time = time.clock()
         #environment.time_elapsed += stop_time - start_time
+        self.time+=stop_time-start_time
+        self.num_played+=1
+        avg_turn=self.time/self.num_played
+        if((avg_turn) > 60/500 and self.dep>2):
+            self.dep-=1
+        elif((avg_turn)< 45/500): #if we have extra time we can allow ourselves to allow more depth
+            self.dep+=1
         return maxi_action
 
     def get_action_wrapper(self, state: MinimaxAgent.TurnBasedGameState, dep: int, alpha: float, beta: float) -> float:
@@ -290,10 +272,8 @@ def local_search():
     print(to_print)
 
 
-class TournamentAgent(Player):
-
-    def get_action(self, state: GameState) -> GameAction:
-        pass
+class TournamentAgent(AlphaBetaAgent):
+    pass
 
 
 if __name__ == '__main__':
